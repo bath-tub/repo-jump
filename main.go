@@ -19,6 +19,11 @@ import (
 func itoa(n int) string { return strconv.Itoa(n) }
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "setup" {
+		runSetup()
+		return
+	}
+
 	org := flag.String("org", "", "GitHub org/owner to jump within (default: saved org, else your gh account)")
 	refresh := flag.Bool("refresh", false, "rebuild the repo index via `gh repo list` and exit")
 	alpha := flag.Float64("alpha", envFloat("REPO_JUMP_ALPHA", 2.0), "weight applied to the frecency signal")
@@ -93,6 +98,6 @@ func envFloat(key string, def float64) float64 {
 }
 
 func fatal(err error) {
-	fmt.Fprintln(os.Stderr, "repo-jump:", err)
+	fmt.Fprintln(os.Stderr, "rj:", err)
 	os.Exit(1)
 }

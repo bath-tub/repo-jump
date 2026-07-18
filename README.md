@@ -8,38 +8,38 @@ and it works identically for anyone (the only state is your own usage).
 
 ## Install
 
-```sh
-go build -o repo-jump .
-# then put ./repo-jump on your PATH
-```
-
-## Setup
-
-Build the local repo index once (repeat whenever repos are added):
+One command — builds the `rj` binary, puts it on your PATH, then runs the
+interactive setup wizard:
 
 ```sh
-repo-jump --refresh --org my-org    # an org/owner you can see via gh
-repo-jump --refresh                 # no --org: defaults to your gh account
+git clone https://github.com/bath-tub/repo-jump.git
+cd repo-jump && ./install.sh
 ```
 
-The chosen org is saved, so later runs need no `--org`. This requires the
-[`gh`](https://cli.github.com) CLI, authenticated against an account that can
-see the org's repos (`gh auth status`).
+The wizard checks the [`gh`](https://cli.github.com) CLI (offering to run
+`gh auth login` if needed), asks which org/owner to jump within, builds the repo
+index, and optionally adds a Ctrl-G zsh keybinding. Re-run it anytime with
+`rj setup`.
+
+Requires [Go](https://go.dev/dl) (build) and [`gh`](https://cli.github.com)
+(indexing). Install location defaults to `~/.local/bin`; override with
+`REPO_JUMP_BIN=/somewhere ./install.sh`.
 
 ## Use
 
 ```sh
-repo-jump
+rj            # or press Ctrl-G if you added the keybinding
 ```
 
 - Type — subsequence fuzzy match (`kc` → `kube_config`), matched chars highlighted.
 - `↑/↓` (or `ctrl-p/ctrl-n`) to move, `enter` to open, `esc` to quit.
 - Empty query shows your most-used repos first (★ marks ones you've opened).
 
-Bind it to a keystroke in your shell for instant access, e.g. zsh:
+Refresh the index whenever repos are added:
 
 ```sh
-bindkey -s '^g' 'repo-jump\n'   # ctrl-g from an empty prompt
+rj --refresh                 # re-index the saved org
+rj --refresh --org other-org # switch to a different org (also saved)
 ```
 
 ## Configuration
@@ -61,4 +61,5 @@ For each candidate: `finalScore = fuzzyScore + alpha · log2(1 + frecency)`.
   hot repo boosts strongly without bulldozing a clearly-better textual match.
 
 State lives in `$XDG_DATA_HOME/repo-jump/` (or `~/.local/share/repo-jump/`):
-`repos.txt` (the index) and `frecency.json` (your usage).
+`repos.txt` (the index) and `frecency.json` (your usage). The chosen org is
+saved in `$XDG_CONFIG_HOME/repo-jump/org` (or `~/.config/repo-jump/org`).

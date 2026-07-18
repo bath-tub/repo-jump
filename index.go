@@ -31,7 +31,7 @@ func LoadIndex() ([]string, error) {
 	b, err := os.ReadFile(indexPath())
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil, fmt.Errorf("no repo index yet — run `repo-jump --refresh` to build it")
+			return nil, fmt.Errorf("no repo index yet — run `rj --refresh` (or `rj setup`) to build it")
 		}
 		return nil, err
 	}
