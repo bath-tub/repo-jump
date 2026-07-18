@@ -20,7 +20,11 @@ go build -o rj .
 
 BIN_DIR="${REPO_JUMP_BIN:-$HOME/.local/bin}"
 mkdir -p "$BIN_DIR"
-cp rj "$BIN_DIR/rj"
+# Install via a fresh inode (copy + rename), never an in-place overwrite — on
+# macOS, overwriting an already-validated binary invalidates its cached code
+# signature and the OS then SIGKILLs it at launch.
+cp rj "$BIN_DIR/rj.new"
+mv -f "$BIN_DIR/rj.new" "$BIN_DIR/rj"
 echo "Installed rj to $BIN_DIR/rj"
 
 case ":$PATH:" in
