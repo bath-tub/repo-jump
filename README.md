@@ -33,13 +33,20 @@ rj            # or press Ctrl-G if you added the keybinding
 
 - Type — subsequence fuzzy match (`kc` → `kube_config`), matched chars highlighted.
 - `↑/↓` (or `ctrl-p/ctrl-n`) to move, `enter` to open, `esc` to quit.
-- Empty query shows your most-used repos first (★ marks ones you've opened).
+- Empty query shows your most-used repos first (`×N` = times you've opened it).
 
 Refresh the index whenever repos are added:
 
 ```sh
 rj --refresh                 # re-index the saved org
 rj --refresh --org other-org # switch to a different org (also saved)
+```
+
+Update to the latest published version anytime — pulls the source, rebuilds,
+and replaces the running binary in place:
+
+```sh
+rj update
 ```
 
 ## Configuration

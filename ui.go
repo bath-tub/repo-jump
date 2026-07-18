@@ -16,7 +16,7 @@ var (
 	matchStyle  = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("2"))  // green
 	cursorStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("6"))             // cyan pointer
 	dimStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("8"))             // help text
-	freStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("3")).Faint(true) // star for known repos
+	freStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("3")).Faint(true) // ×N visit count
 )
 
 type scored struct {
@@ -24,6 +24,7 @@ type scored struct {
 	positions map[int]bool
 	final     float64
 	fre       float64
+	count     int // times opened, shown as ×N
 }
 
 type model struct {
@@ -72,6 +73,7 @@ func (m *model) recompute() {
 			positions: pos,
 			final:     mt.Score + m.alpha*freWeight,
 			fre:       raw,
+			count:     m.fre.Count(name),
 		})
 	}
 	sort.SliceStable(res, func(i, j int) bool {
@@ -136,8 +138,8 @@ func (m model) View() string {
 			pointer = cursorStyle.Render("› ")
 		}
 		b.WriteString(pointer + highlight(r.name, r.positions))
-		if r.fre > 0 {
-			b.WriteString(" " + freStyle.Render("★"))
+		if r.count > 0 {
+			b.WriteString(" " + freStyle.Render("×"+itoa(r.count)))
 		}
 		b.WriteString("\n")
 	}

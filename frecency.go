@@ -64,6 +64,11 @@ func (f *Frecency) Score(name string, now int64) float64 {
 	return float64(e.Count) * mult
 }
 
+// Count returns how many times name has been opened (0 if never).
+func (f *Frecency) Count(name string) int {
+	return f.entries[name].Count
+}
+
 // Bump records an open of name at time now and persists the store.
 func (f *Frecency) Bump(name string, now int64) error {
 	e := f.entries[name]

@@ -19,9 +19,15 @@ import (
 func itoa(n int) string { return strconv.Itoa(n) }
 
 func main() {
-	if len(os.Args) > 1 && os.Args[1] == "setup" {
-		runSetup()
-		return
+	if len(os.Args) > 1 {
+		switch os.Args[1] {
+		case "setup":
+			runSetup()
+			return
+		case "update":
+			runUpdate()
+			return
+		}
 	}
 
 	org := flag.String("org", "", "GitHub org/owner to jump within (default: saved org, else your gh account)")

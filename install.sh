@@ -5,6 +5,11 @@ set -euo pipefail
 
 cd "$(dirname "$0")"
 
+# Record where the source lives so `rj update` can rebuild from it later.
+CFG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/repo-jump"
+mkdir -p "$CFG_DIR"
+pwd -P >"$CFG_DIR/src"
+
 command -v go >/dev/null 2>&1 || {
 	echo "error: Go is required to build rj — install from https://go.dev/dl" >&2
 	exit 1
