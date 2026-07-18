@@ -62,7 +62,7 @@ func main() {
 	}
 
 	m := newModel(repos, fre, time.Now().Unix(), *alpha)
-	final, err := tea.NewProgram(m).Run()
+	final, err := tea.NewProgram(m, tea.WithAltScreen()).Run()
 	if err != nil {
 		fatal(err)
 	}

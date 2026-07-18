@@ -13,10 +13,15 @@ import (
 const maxRows = 15
 
 var (
-	matchStyle  = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("2"))  // green
-	cursorStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("6"))             // cyan pointer
-	dimStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("8"))             // help text
-	freStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("3")).Faint(true) // ×N visit count
+	matchStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("2")) // green (unselected rows)
+	dimStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("8"))           // help text
+
+	// Inverse style: the cursor is a full-width bar. Every segment on the bar
+	// sets the same background so it reads as one continuous strip.
+	selBg    = lipgloss.Color("239")
+	barBase  = lipgloss.NewStyle().Background(selBg).Foreground(lipgloss.Color("231"))
+	barMatch = lipgloss.NewStyle().Background(selBg).Foreground(lipgloss.Color("48")).Bold(true)
+	barCount = lipgloss.NewStyle().Background(selBg).Foreground(lipgloss.Color("180"))
 )
 
 type scored struct {
@@ -34,7 +39,10 @@ type model struct {
 	now     int64
 	alpha   float64
 	results []scored
-	cursor  int
+	cursor  int // absolute index into results
+	offset  int // index of the first visible row (scroll window)
+	width   int
+	height  int
 
 	// Selected is set to the chosen repo name when the user presses Enter.
 	Selected string
@@ -86,13 +94,57 @@ func (m *model) recompute() {
 	if m.cursor >= len(res) {
 		m.cursor = 0
 	}
+	m.offset = 0
+}
+
+// visibleRows is how many result rows fit: terminal height minus the prompt
+// line, a blank line, and the help line, capped for sanity. Before the first
+// window-size message (height 0) we fall back to maxRows.
+func (m model) visibleRows() int {
+	v := maxRows
+	if m.height > 0 {
+		v = m.height - 3
+	}
+	if v < 1 {
+		v = 1
+	}
+	if v > maxRows {
+		v = maxRows
+	}
+	if v > len(m.results) {
+		v = len(m.results)
+	}
+	return v
+}
+
+// reconcile keeps the scroll window around the cursor.
+func (m *model) reconcile() {
+	vis := m.visibleRows()
+	if vis < 1 {
+		m.offset = 0
+		return
+	}
+	if m.cursor < m.offset {
+		m.offset = m.cursor
+	}
+	if m.cursor >= m.offset+vis {
+		m.offset = m.cursor - vis + 1
+	}
+	if m.offset < 0 {
+		m.offset = 0
+	}
 }
 
 func (m model) Init() tea.Cmd { return textinput.Blink }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if key, ok := msg.(tea.KeyMsg); ok {
-		switch key.Type {
+	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.width, m.height = msg.Width, msg.Height
+		m.reconcile()
+		return m, nil
+	case tea.KeyMsg:
+		switch msg.Type {
 		case tea.KeyEnter:
 			if len(m.results) > 0 {
 				m.Selected = m.results[m.cursor].name
@@ -103,11 +155,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case tea.KeyUp, tea.KeyCtrlP:
 			if m.cursor > 0 {
 				m.cursor--
+				m.reconcile()
 			}
 			return m, nil
 		case tea.KeyDown, tea.KeyCtrlN:
-			if m.cursor < len(m.results)-1 && m.cursor < maxRows-1 {
+			if m.cursor < len(m.results)-1 {
 				m.cursor++
+				m.reconcile()
 			}
 			return m, nil
 		}
@@ -127,29 +181,63 @@ func (m model) View() string {
 	var b strings.Builder
 	b.WriteString(m.ti.View() + "\n")
 
-	n := len(m.results)
-	if n > maxRows {
-		n = maxRows
-	}
-	for i := 0; i < n; i++ {
-		r := m.results[i]
-		pointer := "  "
-		if i == m.cursor {
-			pointer = cursorStyle.Render("› ")
-		}
-		b.WriteString(pointer + highlight(r.name, r.positions))
-		if r.count > 0 {
-			b.WriteString(" " + freStyle.Render("×"+itoa(r.count)))
-		}
-		b.WriteString("\n")
-	}
 	if len(m.results) == 0 {
 		b.WriteString(dimStyle.Render("  no matches") + "\n")
+	}
+
+	vis := m.visibleRows()
+	for k := 0; k < vis; k++ {
+		i := m.offset + k
+		if i >= len(m.results) {
+			break
+		}
+		r := m.results[i]
+		if i == m.cursor {
+			b.WriteString(m.renderBar(r)) // full-width selection bar
+		} else {
+			b.WriteString(highlight(r.name, r.positions)) // matches only, no count
+		}
+		b.WriteString("\n")
 	}
 
 	total := len(m.results)
 	b.WriteString("\n" + dimStyle.Render(
 		"↑/↓ move · enter open · esc quit · "+plural(total)+" matched"))
+	return b.String()
+}
+
+// renderBar draws the selected row as one continuous full-width bar: name (with
+// matched chars picked out), the ×N count, then padding — every segment sharing
+// the bar background so it reads as a single strip.
+func (m model) renderBar(r scored) string {
+	runes := []rune(r.name)
+	var b strings.Builder
+
+	// Group consecutive matched/unmatched runs to keep the escape count low.
+	for i := 0; i < len(runes); {
+		matched := r.positions[i]
+		j := i
+		for j < len(runes) && r.positions[j] == matched {
+			j++
+		}
+		seg := string(runes[i:j])
+		if matched {
+			b.WriteString(barMatch.Render(seg))
+		} else {
+			b.WriteString(barBase.Render(seg))
+		}
+		i = j
+	}
+
+	visible := len(runes)
+	if r.count > 0 {
+		tail := "  ×" + itoa(r.count)
+		b.WriteString(barCount.Render(tail))
+		visible += len([]rune(tail))
+	}
+	if pad := m.width - visible; pad > 0 {
+		b.WriteString(barBase.Render(strings.Repeat(" ", pad)))
+	}
 	return b.String()
 }
 
