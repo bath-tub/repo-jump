@@ -19,17 +19,25 @@ import (
 func itoa(n int) string { return strconv.Itoa(n) }
 
 func main() {
-	org := flag.String("org", envOr("REPO_JUMP_ORG", "payitgov"), "GitHub org/owner to jump within")
+	org := flag.String("org", "", "GitHub org/owner to jump within (default: saved org, else your gh account)")
 	refresh := flag.Bool("refresh", false, "rebuild the repo index via `gh repo list` and exit")
 	alpha := flag.Float64("alpha", envFloat("REPO_JUMP_ALPHA", 2.0), "weight applied to the frecency signal")
 	flag.Parse()
 
+	targetOrg, err := resolveOrg(*org)
+	if err != nil {
+		fatal(err)
+	}
+
 	if *refresh {
-		n, err := RefreshIndex(*org)
+		n, err := RefreshIndex(targetOrg)
 		if err != nil {
 			fatal(err)
 		}
-		fmt.Printf("indexed %d repos for %s\n", n, *org)
+		if err := saveOrg(targetOrg); err != nil {
+			fmt.Fprintf(os.Stderr, "warning: could not save org: %v\n", err)
+		}
+		fmt.Printf("indexed %d repos for %s\n", n, targetOrg)
 		return
 	}
 
@@ -55,7 +63,7 @@ func main() {
 	if err := fre.Bump(sel, time.Now().Unix()); err != nil {
 		fmt.Fprintf(os.Stderr, "warning: could not record usage: %v\n", err)
 	}
-	url := fmt.Sprintf("https://github.com/%s/%s", *org, sel)
+	url := fmt.Sprintf("https://github.com/%s/%s", targetOrg, sel)
 	if err := openBrowser(url); err != nil {
 		fatal(fmt.Errorf("could not open %s: %w", url, err))
 	}
@@ -73,13 +81,6 @@ func openBrowser(url string) error {
 		cmd = "xdg-open"
 	}
 	return exec.Command(cmd, append(args, url)...).Start()
-}
-
-func envOr(key, def string) string {
-	if v := os.Getenv(key); v != "" {
-		return v
-	}
-	return def
 }
 
 func envFloat(key string, def float64) float64 {

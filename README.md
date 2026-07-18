@@ -18,12 +18,13 @@ go build -o repo-jump .
 Build the local repo index once (repeat whenever repos are added):
 
 ```sh
-repo-jump --refresh                 # defaults to org "payitgov"
-repo-jump --refresh --org my-org    # any org/owner you can see via gh
+repo-jump --refresh --org my-org    # an org/owner you can see via gh
+repo-jump --refresh                 # no --org: defaults to your gh account
 ```
 
-This requires the [`gh`](https://cli.github.com) CLI, authenticated against an
-account that can see the org's repos (`gh auth status`).
+The chosen org is saved, so later runs need no `--org`. This requires the
+[`gh`](https://cli.github.com) CLI, authenticated against an account that can
+see the org's repos (`gh auth status`).
 
 ## Use
 
@@ -45,7 +46,7 @@ bindkey -s '^g' 'repo-jump\n'   # ctrl-g from an empty prompt
 
 | Flag / env | Default | Meaning |
 |---|---|---|
-| `--org` / `REPO_JUMP_ORG` | `payitgov` | GitHub org/owner to jump within |
+| `--org` / `REPO_JUMP_ORG` | saved org, else your gh account | GitHub org/owner to jump within |
 | `--alpha` / `REPO_JUMP_ALPHA` | `2.0` | weight applied to the frecency signal |
 | `--refresh` | — | rebuild the repo index via `gh repo list` and exit |
 
